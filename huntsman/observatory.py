@@ -239,26 +239,32 @@ class HuntsmanObservatory(Observatory):
             self.mount.slew_to_target()
             self.status()  # Seems to help with reading coords
 
+            self.logger.debug("LEE DEBUG: Running get_standard_headers")
             fits_headers = self.get_standard_headers(observation=flat_obs)
 
+            self.logger.debug("LEE DEBUG: set start_time")
             start_time = utils.current_time()
             fits_headers['start_time'] = utils.flatten_time(
                 start_time)  # Common start time for cameras
+
 
             camera_events = dict()
 
             # Take the observations
             for cam_name in camera_list:
 
+                self.logger.debug("LEE DEBUG: get camera {}".format(cam_name))
                 camera = self.cameras[cam_name]
+                self.logger.debug("LEE DEBUG: {}".format(camera))
 
                 filename = "{}/flats/{}/{}/{}.{}".format(
                     image_dir,
                     camera.uid,
                     flat_obs.seq_time,
                     'flat_{:02d}'.format(flat_obs.current_exp_num), camera.file_extension)
-
+                self.logger.debug("LEE DEBUG: filename: {}".format(filename))
                 # Take picture and get event
+                self.logger.debug("LEE DEBUG: exptimes: {}".format(exptimes))
                 if exptimes[cam_name][-1].value < max_exptime:
                     camera_event = camera.take_observation(
                         flat_obs,
@@ -266,17 +272,17 @@ class HuntsmanObservatory(Observatory):
                         filename=filename,
                         exptime=exptimes[cam_name][-1]
                     )
-
+                    self.logger.debug("LEE DEBUG: camera_event {}".format(camera_event))
                     camera_events[cam_name] = {
                         'event': camera_event,
                         'filename': filename,
                     }
-
+                    self.logger.debug("LEE DEBUG: camera_events[cam_name] {}".format(camera_events[cam_name]))
             # Block until done exposing on all cameras
             while not all([info['event'].is_set() for info in camera_events.values()]):
                 self.logger.debug('Waiting for flat-field image')
                 time.sleep(1)
-
+            self.logger.debug("LEE DEBUG: got flat field image")
             # Check the counts for each image
             is_saturated = False
             for cam_name, info in camera_events.items():
@@ -289,11 +295,11 @@ class HuntsmanObservatory(Observatory):
                     fits_utils.fpack(img_file.replace('.fits', '.fits.fz'), unpack=True)
 
                 data = fits.getdata(img_file)
-
+                self.logger.debug("LEE DEBUG: got fits data")
                 mean, median, stddev = stats.sigma_clipped_stats(data)
 
                 counts = mean - bias
-
+                self.logger.debug("LEE DEBUG: counts level {}".format(counts))
                 # This is in the original DragonFly code so copying
                 if counts <= 0:
                     counts = 10

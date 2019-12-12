@@ -252,7 +252,7 @@ class HuntsmanObservatory(Observatory):
 
             # Take the observations
             for cam_name in camera_list:
-
+                self.logger.debug("LEE DEBUG: camera_list {}".format(camera_list))
                 self.logger.debug("LEE DEBUG: get camera {}".format(cam_name))
                 camera = self.cameras[cam_name]
                 self.logger.debug("LEE DEBUG: {}".format(camera))

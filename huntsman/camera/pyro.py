@@ -113,12 +113,12 @@ class Camera(AbstractCamera):
     @property
     def is_exposing(self):
         return not self._exposure_event.is_set()
-    
+
     @property
     def is_ready(self):
         '''
         True if camera is ready to start another exposure, otherwise False.
-        
+
         Check self.is_exposing first to side-step so-far unexplained
         hanging possibly caused by is_temperature_stable.
         '''
@@ -126,16 +126,16 @@ class Camera(AbstractCamera):
         if self.is_exposing:
             self.logger.debug('Camera not ready: exposing!')
             return False
-        
+
         # For cooled camera expect stable temperature before taking exposure
         if self.is_cooled_camera and not self.is_temperature_stable:
             self.logger.debug('Camera not ready: temperature not stable!')
             return False
 
-        # Check all the subcomponents too, e.g. make sure filterwheel/focuser 
-        #aren't moving.
+        # Check all the subcomponents too, e.g. make sure filterwheel/focuser
+        # aren't moving.
         for sub_name in self._subcomponent_names:
-            if getattr(self, sub_name) and not getattr(self,sub_name).is_ready:
+            if getattr(self, sub_name) and not getattr(self, sub_name).is_ready:
                 self.logger.debug(f'Camera not ready: {sub_name} not ready!')
                 return False
 
@@ -196,8 +196,7 @@ class Camera(AbstractCamera):
             self.focuser = None
 
         self.filterwheel = None  # Remote filterwheels not supported yet.
-        
-        
+
     def take_exposure(self,
                       seconds=1.0 * u.second,
                       filename=None,
@@ -227,6 +226,7 @@ class Camera(AbstractCamera):
             msg = "Attempt to take exposure on {} while one already in progress.".format(self)
             raise error.PanError(msg)
 
+        self.logger.debug("LEE DEBUG: clear event")
         # Clear event now to prevent any other exposures starting before this one is finished.
         self._exposure_event.clear()
 
@@ -239,18 +239,28 @@ class Camera(AbstractCamera):
         Pyro4.asyncproxy(self._proxy, asynchronous=True)
 
         # Start the exposure
-        filename = os.path.abspath(filename) 
+        filename = os.path.abspath(filename)
         dir_name, base_name = os.path.split(filename)
-        
+
         self.logger.debug(f'Taking {seconds} second exposure on {self.name}: {base_name} in {dir_name}')
-        
+
+        self.logger.debug("LEE DEBUG: about to call self._proxy.take_exposure(")
+        self.logger.debug("LEE DEBUG: printing args to self._proxy.take_exposure(")
+        self.logger.debug(f"LEE DEBUG: seconds={seconds}")
+        self.logger.debug(f"LEE DEBUG: base_name={base_name}")
+        self.logger.debug(f"LEE DEBUG: dir_name={dir_name}")
+        self.logger.debug(f"LEE DEBUG: dark={dark}")
+        self.logger.debug(f"LEE DEBUG: bool(dark)={bool(dark)}")
+        self.logger.debug(f"LEE DEBUG: args={args}")
+        self.logger.debug(f"LEE DEBUG: kwargs={kwargs}")
+
         # Remote method call to start the exposure
         exposure_result = self._proxy.take_exposure(seconds=seconds,
                                                     base_name=base_name,
                                                     dir_name=dir_name,
                                                     dark=bool(dark),
                                                     *args,
-                                                    **kwargs) 
+                                                    **kwargs)
         exposure_result
 
         # Start a thread that will set an event once exposure has completed
@@ -603,17 +613,17 @@ class CameraServer(object):
 
     def take_exposure(self, seconds, base_name, dark, dir_name=None, *args,
                       **kwargs):
-        
-        #Specify the full filename
-        #This uses the camera server's "images" directory 
+
+        # Specify the full filename
+        # This uses the camera server's "images" directory
         if dir_name is None:
             filename = os.path.join(os.path.abspath(
-                        self.config['directories']['images']), base_name)
-        #This does not necessarily use the "images" directory
+                self.config['directories']['images']), base_name)
+        # This does not necessarily use the "images" directory
         else:
             filename = os.path.join(dir_name, base_name)
-                    
-        #Start the exposure and wait for it complete
+
+        # Start the exposure and wait for it complete
         self._camera.take_exposure(seconds=seconds,
                                    filename=filename,
                                    dark=dark,

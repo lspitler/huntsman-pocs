@@ -234,6 +234,8 @@ class Camera(AbstractCamera):
         if isinstance(seconds, u.Quantity):
             seconds = seconds.to(u.second).value
         seconds = float(seconds)
+        if 'exptime' in kwargs:
+            kwargs['exptime'] = get_quantity_value(kwargs['exptime'], u.second)
 
         # Make sure proxy is in async mode
         Pyro4.asyncproxy(self._proxy, asynchronous=True)
